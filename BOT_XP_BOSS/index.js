@@ -17,6 +17,7 @@ const path = require("path")
 var cron = require('node-cron');
 
 client.commands = new Collection();
+client.cooldowns = new Collection();
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
 
@@ -42,12 +43,17 @@ let randomWordsListData = fs.readFileSync("wordsList.json") // reads the json fi
 let randomWordsList = JSON.parse(randomWordsListData) // turns json into js
 let randomWordData = fs.readFileSync("wordOfTheDay.json") // reads the json file
 let randomWord = JSON.parse(randomWordData) // turns json into js
+let murderData = fs.readFileSync("murder.json")
+let murderObject = JSON.parse(murderData)[0] // turns json into js
+let victimObject = JSON.parse(murderData)[2]
 
 const xpMin = 15
 const xpMax = 40
 const xpMultiplierForNotRobot = 2
 let newRandomWord = {}
 let oldRandomWord = {}
+let newRandomEvilWord = {}
+let oldRandomEvilWord = {}
 let rolesLevels = [
 	{
 		'role': '1182169777825927178',
@@ -130,7 +136,36 @@ function selectwordoftheday(){
 	client.channels.cache.get('1182165246870310984').send(`Today's random word has been selected! it has been used **${newRandomWord.count}** times (before March 4, 2024)`)
 
 }
+function selectevilwordoftheday(){
+	newRandomEvilWord = getRandomWord(randomWordsList)
+	if(randomWord[2] != null){
+		oldRandomEvilWord = randomWord[2]
+		randomWord[3] = oldRandomEvilWord
+	}
+	randomWord[2] = newRandomEvilWord
+	let jsonRandomWord = JSON.stringify(randomWord)
+	fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
+	if(randomWord[3] != null){
+		client.channels.cache.get('1182165246870310984').send(`Yesterday's illegal word word was **${randomWord[3].word}**`)
+	}
+	client.channels.cache.get('1182165246870310984').send(`Today's illegal word has been selected! it has been used **${newRandomEvilWord.count}** times (before March 4, 2024)`)
 
+}
+function selectvictimoftheday(){
+	let victimId = murderObject[Math.floor(Math.random() * murderObject.length)].id
+	let victimUser = client.users.fetch(victimId)
+	victimUser.then(function(victim){
+		newRandomVictim = {
+			id: victim.id,
+			username: victim.username,
+			timesMurdered: 0
+		}
+		victimObject=newRandomVictim
+		let jsonMurder = JSON.stringify([murderObject,JSON.parse(murderData)[1],victimObject]) // turns js back into json
+		fs.writeFileSync("murder.json", jsonMurder)
+		client.channels.cache.get('1182165246870310984').send(`Today's random victim has been selected! **${newRandomVictim.username}** should watch out for any comedically timed falling pianos in their vicinity.`)
+	})
+}
 client.on(Events.InteractionCreate, async interaction => {
 	if (!interaction.isChatInputCommand()) return;
 
@@ -140,6 +175,28 @@ client.on(Events.InteractionCreate, async interaction => {
 		console.error(`No command matching ${interaction.commandName} was found.`);
 		return;
 	}
+
+	const { cooldowns } = interaction.client;
+
+	if (!cooldowns.has(command.data.name)) {
+		cooldowns.set(command.data.name, new Collection());
+	}
+
+	const now = Date.now();
+	const timestamps = cooldowns.get(command.data.name);
+	const defaultCooldownDuration = 3;
+	const cooldownAmount = (command.cooldown ?? defaultCooldownDuration) * 1_000;
+
+	if (timestamps.has(interaction.user.id)) {
+		const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
+
+		if (now < expirationTime) {
+			const expiredTimestamp = Math.round(expirationTime / 1_000);
+			return interaction.reply({ content: `Please wait, you are on a cooldown for \`${command.data.name}\`. You can use it again <t:${expiredTimestamp}:R>.`, ephemeral: true });
+		}
+	}
+	timestamps.set(interaction.user.id, now);
+	setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 
 	try {
 		await command.execute(interaction, xpObject, client);
@@ -160,21 +217,42 @@ client.once(Events.ClientReady, readyClient => {
 	for (let i = 0; i < xpObject.length; i++) {
 		xpObject[i].timeout = false;
 	}
+	for (let i = 0; i < murderObject.length; i++) {
+		murderObject[i].banned = 0;
+	}
+	let jsonMurder = JSON.stringify([murderObject,JSON.parse(murderData)[1],victimObject]) // turns js back into json
+	fs.writeFileSync("murder.json", jsonMurder) // the json file is now the xp variable
 	let jsonXP = JSON.stringify(xpObject) // turns js back into json
 	fs.writeFileSync("xp.json", jsonXP) // the json file is now the xp variable
-	cron.schedule('0 8 * * *', () => {
+	cron.schedule('0 5 * * *', () => {
 		selectwordoftheday()
+		selectvictimoftheday()
 	},{
 		scheduled: true,
 		timezone: "US/Central"
-	  });
+	});
+	cron.schedule('0 17 * * *', () => {
+		selectevilwordoftheday()
+	},{
+		scheduled: true,
+		timezone: "US/Central"
+	});
 	if(randomWord[0] == null){
 		selectwordoftheday()
+	}
+	if(randomWord[2] == null){
+		selectevilwordoftheday()
+	}
+	if(victimObject == null){
+		selectvictimoftheday()
 	}
 });
 
 client.on("messageCreate", (m) => {
+	murderData = fs.readFileSync("murder.json")
+	murderObject = JSON.parse(murderData)[0] // turns json into js
 	let xpIndex = xpObject.findIndex(element => element.id === m.author.id)
+	let murderIndex = murderObject.findIndex(element => element.id === m.author.id)
 	if(xpIndex == -1){
 		let userxp = {
 			id: m.author.id,
@@ -193,27 +271,49 @@ client.on("messageCreate", (m) => {
 	}catch{
 		xpObject[xpIndex].username = m.author.username
 	}
-	if(m.toString().toLowerCase().includes(randomWord[0].word.toLowerCase()) && randomWord[0].found == false){
-		randomWord[0].found = true
-		randomWord[0].foundBy = m.author.username
-		let xpToAdd = 25*Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin
-		client.channels.cache.get('1182165246870310984').send(`${m.author} found the secret word: **${randomWord[0].word}** and was awarded ${xpToAdd} xp`)
-		xpObject[xpIndex].xp += xpToAdd
+	try{
+		let murderBanned = 0
+		if(murderIndex != -1){
+			murderBanned = murderObject[murderIndex].banned
+		}
+		if(murderBanned == 2){
+			m.channel.send(`${m.author} is currently timed out`)
+			m.delete()
+			return
+		}
+		if(xpObject[xpIndex].timeout == false && murderBanned == 0){
+			let xpToAdd = Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin
+			xpObject[xpIndex].xp += xpToAdd
+			xpObject[xpIndex].timeout=true
+			setTimeout(() => {
+				xpObject[xpIndex].timeout=false
+			}, 60000);
+			let jsonXP = JSON.stringify(xpObject) // turns js back into json
+			fs.writeFileSync("xp.json", jsonXP) // the json file is now the xp variable
+		}	
 		levelUpCheck(xpObject,xpIndex,m)
-		let jsonRandomWord = JSON.stringify(randomWord)
-		fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
+		if(m.toString().toLowerCase().includes(randomWord[0].word.toLowerCase()) && randomWord[0].found == false){
+			randomWord[0].found = true
+			randomWord[0].foundBy = m.author.username
+			let xpToAdd = 25*(Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin)
+			m.reply(`${m.author} found the secret word: **${randomWord[0].word}**`)
+			client.channels.cache.get('1182165246870310984').send(`${m.author} found the secret word: **${randomWord[0].word}** and was awarded ${xpToAdd} xp`)
+			xpObject[xpIndex].xp += xpToAdd
+			levelUpCheck(xpObject,xpIndex,m)
+			let jsonRandomWord = JSON.stringify(randomWord)
+			fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
+		}
+		if(m.toString().toLowerCase().includes(randomWord[2].word.toLowerCase())){
+			let xpToRemove = -5*(Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin)
+			xpObject[xpIndex].xp += xpToRemove
+			levelUpCheck(xpObject,xpIndex,m)
+			setTimeout(() => {
+				client.channels.cache.get('1182165246870310984').send(`${m.author} said the illegal word and was fined ${-xpToRemove} xp`)
+			}, Math.floor(10000*Math.random()))
+		}
+	} catch{
+		console.log('an error occured')
 	}
-	if(xpObject[xpIndex].timeout == false){
-		let xpToAdd = Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin
-		xpObject[xpIndex].xp += xpToAdd
-		xpObject[xpIndex].timeout=true
-		setTimeout(() => {
-			xpObject[xpIndex].timeout=false
-		}, 60000);
-		let jsonXP = JSON.stringify(xpObject) // turns js back into json
-		fs.writeFileSync("xp.json", jsonXP) // the json file is now the xp variable
-	}	
-	levelUpCheck(xpObject,xpIndex,m)
 })
 // Log in to Discord with your client's token
 client.login(token);
