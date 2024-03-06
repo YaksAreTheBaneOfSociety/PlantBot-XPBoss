@@ -151,7 +151,12 @@ module.exports = {
 				xpObject.push(userxp)
 				xpIndex = xpObject.findIndex(element => element.id === victim.id)
 			}
-			if(successful){
+			if(successful == 1){
+				let xpInsurance = Math.floor(xpAmount*0.1*Math.random())
+				xpObject[xpIndex].xp += xpInsurance
+				client.channels.cache.get('1182165246870310984').send(`${victim.username} got ${xpInsurance} XP from health insurance`)
+				levelUpCheck(xpObject,xpIndex,victim,client)
+			}else if(successful == 2){
 				let xpInsurance = Math.floor(xpAmount*0.75*Math.random())+Math.floor(xpAmount*0.25)
 				xpObject[xpIndex].xp += xpInsurance
 				client.channels.cache.get('1182165246870310984').send(`${victim.username} got ${xpInsurance} XP from life insurance`)
@@ -167,7 +172,7 @@ module.exports = {
 				if(exemptUsers.includes(victim.id)){
 					interaction.reply(`Sucessfully murdered ${victim.username}`)
 				}else{
-					targetmember.timeout(600000);
+					//targetmember.timeout(600000);
 					interaction.reply(`Sucessfully murdered ${victim.username}`)
 				}
 			}else if (successful == 1){
@@ -184,7 +189,7 @@ module.exports = {
 				if(exemptUsers.includes(perpentrator.id)){
 					interaction.reply(`${victim.username} caught you trying to murder them and shot you`)
 				}else{
-					targetmember.timeout(600000);
+					//targetmember.timeout(600000);
 					interaction.reply(`${victim.username} caught you trying to murder them and shot you`)
 				}
 			}
