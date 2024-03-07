@@ -23,6 +23,6 @@ module.exports = {
 		}else{
 			half2 = (`Today's secret word has been found by ${randomWord[0].foundBy}. Today's secret word was **${randomWord[0].word}**.`)
 		}
-		await interaction.reply(half0.concat("\n", half1.concat("\n", half2)))
+		await interaction.reply(half0.concat("\n", half1.concat("\n", half2.concat("\n", `Current streak: ${randomWord[4]} days.`))))
 	},
 };

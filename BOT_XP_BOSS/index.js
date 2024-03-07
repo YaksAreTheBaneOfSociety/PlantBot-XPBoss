@@ -128,10 +128,17 @@ function selectwordoftheday(){
 		randomWord[1] = oldRandomWord
 	}
 	randomWord[0] = newRandomWord
+	let streakString = ""
+	if(randomWord[1].found == false){
+		randomWord[4] = 0
+		streakString = " Yesterday's word was not found. Streak reset to 0."
+	}else{
+		streakString = `Yesterday's word was found. Current random word streak: **${randomWord[4]}** day(s).`
+	}
 	let jsonRandomWord = JSON.stringify(randomWord)
 	fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
 	if(randomWord[1] != null){
-		client.channels.cache.get('1182165246870310984').send(`Yesterday's random word was **${randomWord[1].word}**`)
+		client.channels.cache.get('1182165246870310984').send(`Yesterday's random word was **${randomWord[1].word}**.${streakString}`)
 	}
 	client.channels.cache.get('1182165246870310984').send(`Today's random word has been selected! it has been used **${newRandomWord.count}** times (before March 4, 2024)`)
 
@@ -311,9 +318,10 @@ client.on("messageCreate", (m) => {
 		if(m.toString().toLowerCase().includes(randomWord[0].word.toLowerCase()) && randomWord[0].found == false){
 			randomWord[0].found = true
 			randomWord[0].foundBy = m.author.username
-			let xpToAdd = 25*(Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin)
+			randomWord[4]++
+			let xpToAdd = randomWord[4]*25*(Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin)
 			m.reply(`${m.author} found the secret word: **${randomWord[0].word}**`)
-			client.channels.cache.get('1182165246870310984').send(`${m.author} found the secret word: **${randomWord[0].word}** and was awarded ${xpToAdd} xp`)
+			client.channels.cache.get('1182165246870310984').send(`${m.author} found the secret word: **${randomWord[0].word}** and was awarded ${xpToAdd} xp. Current random word streak: **${randomWord[4]}** day(s).`)
 			xpObject[xpIndex].xp += xpToAdd
 			levelUpCheck(xpObject,xpIndex,m)
 			let jsonRandomWord = JSON.stringify(randomWord)
@@ -321,6 +329,9 @@ client.on("messageCreate", (m) => {
 		}
 		if(m.toString().toLowerCase().includes(randomWord[2].word.toLowerCase())){
 			let xpToRemove = -5*(Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin)
+			if(randomWord[4]!=0){
+				xpToRemove *= randomWord[4]
+			}
 			xpObject[xpIndex].xp += xpToRemove
 			levelUpCheck(xpObject,xpIndex,m)
 			setTimeout(() => {
