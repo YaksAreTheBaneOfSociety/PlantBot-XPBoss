@@ -23,12 +23,20 @@ module.exports = {
 		}else if(exemptUsers.includes(targetuser)){
 			await interaction.reply(`As you are a timeout exempt user, you may not change your murder eligibility status. I apologize for any inconvenience. Watch your back.`)
 		}else{
-			userIndex = inUsers.findIndex(element => element.id === targetuser)
+			let userIndex = inUsers.findIndex(element => element.id === targetuser)
 			if(userIndex == -1){
 				if(inOut){
 					let usertoadd = {
 						id: targetuser,
-						banned: 0
+						username: targetuser.username,
+						banned: 0,
+						kills: 0,
+						selfDefense: 0,
+						murderDeaths: 0,
+						failDeaths: 0,
+						timesInjured: 0,
+						xpSpent: 0,
+						xpEarned: 0
 					}
 					inUsers.push(usertoadd)
 					await interaction.reply(`You have opted in to the murder program. Watch your back and happy hunting.`)
@@ -40,8 +48,12 @@ module.exports = {
 				if(inOut){
 					await interaction.reply(`You have already opted in to the murder program. Watch your back.`)
 				}else{
-					inUsers.splice(userIndex,1)
-					await interaction.reply(`You have opted out of the murder program. Coward.`)
+					if(inUsers[userIndex].banned == targetuser){
+						await interaction.reply(`You cannot remove murder eligibility while banned.`)
+					}else{
+						inUsers.splice(userIndex,1)
+						await interaction.reply(`You have opted out of the murder program. Coward.`)
+					}
 				}
 			}
 		}

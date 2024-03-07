@@ -152,6 +152,9 @@ function selectevilwordoftheday(){
 
 }
 function selectvictimoftheday(){
+	murderData = fs.readFileSync("murder.json")
+	murderObject = JSON.parse(murderData)[0] // turns json into js
+	victimObject = JSON.parse(murderData)[2]
 	let victimId = murderObject[Math.floor(Math.random() * murderObject.length)].id
 	let victimUser = client.users.fetch(victimId)
 	victimUser.then(function(victim){
@@ -217,6 +220,9 @@ client.once(Events.ClientReady, readyClient => {
 	for (let i = 0; i < xpObject.length; i++) {
 		xpObject[i].timeout = false;
 	}
+	murderData = fs.readFileSync("murder.json")
+	murderObject = JSON.parse(murderData)[0] // turns json into js
+	victimObject = JSON.parse(murderData)[2]
 	for (let i = 0; i < murderObject.length; i++) {
 		murderObject[i].banned = 0;
 	}
@@ -251,6 +257,7 @@ client.once(Events.ClientReady, readyClient => {
 client.on("messageCreate", (m) => {
 	murderData = fs.readFileSync("murder.json")
 	murderObject = JSON.parse(murderData)[0] // turns json into js
+	victimObject = JSON.parse(murderData)[2]
 	let xpIndex = xpObject.findIndex(element => element.id === m.author.id)
 	let murderIndex = murderObject.findIndex(element => element.id === m.author.id)
 	if(xpIndex == -1){
@@ -274,6 +281,15 @@ client.on("messageCreate", (m) => {
 	try{
 		let murderBanned = 0
 		if(murderIndex != -1){
+			try{
+				if(murderObject[murderIndex].username != m.member.displayName){
+					murderObject[murderIndex].username = m.member.displayName
+				}
+			}catch{
+				murderObject[murderIndex].username = m.author.username
+			}
+			let jsonMurder = JSON.stringify([murderObject,JSON.parse(murderData)[1],victimObject]) // turns js back into json
+			fs.writeFileSync("murder.json", jsonMurder) // the json file is now the xp variable
 			murderBanned = murderObject[murderIndex].banned
 		}
 		if(murderBanned == 2){

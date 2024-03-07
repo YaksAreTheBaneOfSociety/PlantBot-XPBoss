@@ -18,6 +18,6 @@ module.exports = {
 		
 		const topTen = xpObject.map((obj, index) => `#${index + 1} • ${obj.username} • level: ${obj.level}`);
 		const topTenFormatted = topTen.join('\n')
-		await interaction.reply("**House of KIKI (and the Union Dragon)'s leaderboard**\nWant to view more than the top 10 users? That's what you're doing dumbass\n" + topTenFormatted)
+		await interaction.reply("**"+ interaction.guild.name +"'s leaderboard**\nWant to view more than the top 10 users? That's what you're doing dumbass\n" + topTenFormatted)
 	},
 };
