@@ -106,19 +106,20 @@ function levelUpCheck(xpObject,xpIndex,m){
 		xpNeeded+=75+100*i
 	}
 	if(i == xpObject[xpIndex].level){
-		return
-	}
-	xpObject[xpIndex].level=i
-	let roleIndex = rolesLevels.findIndex(element => element.level === xpObject[xpIndex].level)
-	let addedRolesString = ``
-	for (let i = 0; i < rolesLevels.length; i++) {
-		if (xpObject[xpIndex].level >= rolesLevels[i].level && !m.member.roles.cache.has(rolesLevels[i].role)){
-			m.member.roles.add(rolesLevels[i].role)
-			addedRolesString=addedRolesString.concat(` and earned the <@&${rolesLevels[i].role}> role`)
+		let addedRolesString = ``
+		for (let i = 0; i < rolesLevels.length; i++) {
+			if (xpObject[xpIndex].level >= rolesLevels[i].level && !m.member.roles.cache.has(rolesLevels[i].role)){
+				m.member.roles.add(rolesLevels[i].role)
+				addedRolesString=addedRolesString.concat(`${m.author} has earned the <@&${rolesLevels[i].role}> role\n`)
+			}
 		}
+		if(addedRolesString != ``){
+			client.channels.cache.get('1182165246870310984').send(addedRolesString)
+		}
+	}else{
+		xpObject[xpIndex].level=i
+		client.channels.cache.get('1182165246870310984').send(`${m.author} has reached level **${xpObject[xpIndex].level}**`)
 	}
-	client.channels.cache.get('1182165246870310984').send(`${m.author} has reached level **${xpObject[xpIndex].level}**${addedRolesString}`)
-
 }
 function selectwordoftheday(){
 	newRandomWord = getRandomWord(randomWordsList)
@@ -315,10 +316,25 @@ client.on("messageCreate", (m) => {
 			fs.writeFileSync("xp.json", jsonXP) // the json file is now the xp variable
 		}	
 		levelUpCheck(xpObject,xpIndex,m)
+		
+		let randomWordData = fs.readFileSync("wordOfTheDay.json") // reads the json file
+		let randomWord = JSON.parse(randomWordData) // turns json into js
+
 		if(m.toString().toLowerCase().includes(randomWord[0].word.toLowerCase()) && randomWord[0].found == false){
 			randomWord[0].found = true
 			randomWord[0].foundBy = m.author.username
 			randomWord[4]++
+			let wordUserIndex = randomWord[5].findIndex(element => element.id === m.author.id)
+			if(wordUserIndex==-1){
+				let userword = {
+					id: m.author.id,
+					secret: 0,
+					illegal: 0
+				}
+				randomWord[5].push(userword)
+				wordUserIndex = randomWord[5].findIndex(element => element.id === m.author.id)
+			}
+			randomWord[5][wordUserIndex].secret++
 			let xpToAdd = randomWord[4]*25*(Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin)
 			m.reply(`${m.author} found the secret word: **${randomWord[0].word}**`)
 			client.channels.cache.get('1182165246870310984').send(`${m.author} found the secret word: **${randomWord[0].word}** and was awarded ${xpToAdd} xp. Current random word streak: **${randomWord[4]}** day(s).`)
@@ -328,6 +344,17 @@ client.on("messageCreate", (m) => {
 			fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
 		}
 		if(m.toString().toLowerCase().includes(randomWord[2].word.toLowerCase())){
+			let wordUserIndex = randomWord[5].findIndex(element => element.id === targetuser.id)
+			if(wordUserIndex==-1){
+				let userword = {
+					id: m.author.id,
+					secret: 0,
+					illegal: 0
+				}
+				randomWord[5].push(userword)
+				wordUserIndex = randomWord[5].findIndex(element => element.id === m.author.id)
+			}
+			randomWord[5][wordUserIndex].illegal++
 			let xpToRemove = -5*(Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin)
 			if(randomWord[4]!=0){
 				xpToRemove *= randomWord[4]
@@ -336,10 +363,17 @@ client.on("messageCreate", (m) => {
 			levelUpCheck(xpObject,xpIndex,m)
 			setTimeout(() => {
 				client.channels.cache.get('1182165246870310984').send(`${m.author} said the illegal word and was fined ${-xpToRemove} xp`)
+				let jsonRandomWord = JSON.stringify(randomWord)
+				fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
 			}, Math.floor(10000*Math.random()))
 		}
-	} catch{
+	} catch (err){
 		console.log('an error occured')
+		console.log(err)
+		xpIndex = xpObject.findIndex(element => element.id === m.author.id)
+		setTimeout(() => {
+			xpObject[xpIndex].timeout=false
+		}, 60000);
 	}
 })
 // Log in to Discord with your client's token

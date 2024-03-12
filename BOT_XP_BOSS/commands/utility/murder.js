@@ -40,8 +40,6 @@ let rolesLevels = [
 	},
 ]
 function levelUpCheck(xpObject,xpIndex,targetuser,client){
-	let guild = client.guilds.cache.get('1089262275036201090');
-	let targetmember = guild.members.cache.get(targetuser.id);
 	let xpNeeded = 75
 	let i = 0
 	while(xpObject[xpIndex].xp > xpNeeded) {
@@ -52,15 +50,7 @@ function levelUpCheck(xpObject,xpIndex,targetuser,client){
 		return
 	}
 	xpObject[xpIndex].level=i
-	let roleIndex = rolesLevels.findIndex(element => element.level === xpObject[xpIndex].level)
-	let addedRolesString = ``
-	for (let i = 0; i < rolesLevels.length; i++) {
-		if (xpObject[xpIndex].level >= rolesLevels[i].level && !targetmember.roles.cache.has(rolesLevels[i].role)){
-			targetmember.roles.add(rolesLevels[i].role)
-			addedRolesString=addedRolesString.concat(` and earned the <@&${rolesLevels[i].role}> role`)
-		}
-	}
-	client.channels.cache.get('1182165246870310984').send(`<@${targetuser.id}> has reached level **${xpObject[xpIndex].level}**${addedRolesString}`)
+	client.channels.cache.get('1182165246870310984').send(`<@${targetuser.id}> has reached level **${xpObject[xpIndex].level}**`)
 
 }
 module.exports = {
