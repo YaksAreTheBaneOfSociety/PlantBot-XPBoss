@@ -36,17 +36,22 @@ for (const folder of commandFolders) {
 	}
 }
 
-
+let laughStrings = ['haha', 'hehe', 'hoho', 'lul', 'lol', 'lmao', '😂', '🤣']
+let laughObject = []
 let xpData = fs.readFileSync("xp.json") // reads the json file
 let xpObject = JSON.parse(xpData) // turns json into js
-let randomWordsListData = fs.readFileSync("wordsList.json") // reads the json file
+let randomWordsListData = fs.readFileSync("wordsListNew.json") // reads the json file
 let randomWordsList = JSON.parse(randomWordsListData) // turns json into js
+let dailyWordsListData = fs.readFileSync("wordsListDaily.json") // reads the json file
+let dailyWordsList = JSON.parse(dailyWordsListData) // turns json into js
+let singleWordsListData = fs.readFileSync("wordsListSingle.json") // reads the json file
+let singleWordsList = JSON.parse(singleWordsListData) // turns json into js
 let randomWordData = fs.readFileSync("wordOfTheDay.json") // reads the json file
 let randomWord = JSON.parse(randomWordData) // turns json into js
 let murderData = fs.readFileSync("murder.json")
 let murderObject = JSON.parse(murderData)[0] // turns json into js
 let victimObject = JSON.parse(murderData)[2]
-
+const segmenterEn = new Intl.Segmenter('en', { granularity: 'word' });//used for word of the day for breaking messages into wordlikes
 const xpMin = 15
 const xpMax = 40
 const xpMultiplierForNotRobot = 2
@@ -93,10 +98,42 @@ let rolesLevels = [
 	},
 ]
 
-
+function hasNumbers(inputString) {
+	return /\d/.test(inputString);
+}
 var getRandomWord = function(wordList){
     const randomIndex = Math.floor(Math.random() * wordList.length);
     return wordList[randomIndex];
+}
+function countAndSortWords(){
+	while(dailyWordsList.length > 0){
+		wordsListIndex = randomWordsList.findIndex(element => element.word == dailyWordsList[0].toLowerCase())
+		if(wordsListIndex != -1){
+			randomWordsList[wordsListIndex].count++
+		}else if(singleWordsList.includes(dailyWordsList[0].toLowerCase())){
+			let wordObject = {
+				word: dailyWordsList[0].toLowerCase(),
+				count: 2
+			}
+			randomWordsList.push(wordObject)
+			singleWordsList.splice(singleWordsList.indexOf(dailyWordsList[0].toLowerCase()), 1)
+		}else{
+			singleWordsList.push(dailyWordsList[0].toLowerCase())
+		}
+		dailyWordsList.shift()
+	}
+	function compareObjects(a, b) {
+		if (a.count !== b.count) {
+			return b.count - a.count
+		}
+	}
+	randomWordsList.sort(compareObjects);
+	let jsonwords = JSON.stringify(WordsList)
+	fs.writeFileSync("wordsListNew.json", jsonwords)
+	let jsonwordsdaily = JSON.stringify(dailyWordsList)
+	fs.writeFileSync("wordsListDaily.json", jsonwordsdaily)
+	let jsonsinglewords = JSON.stringify(singleWordsList)
+	fs.writeFileSync("wordsListSingle.json", jsonsinglewords)
 }
 function levelUpCheck(xpObject,xpIndex,m){
 	let xpNeeded = 75
@@ -122,6 +159,8 @@ function levelUpCheck(xpObject,xpIndex,m){
 	}
 }
 function selectwordoftheday(){
+	randomWordData = fs.readFileSync("wordOfTheDay.json") // reads the json file
+	randomWord = JSON.parse(randomWordData) // turns json into js
 	newRandomWord = getRandomWord(randomWordsList)
 	newRandomWord.found = false
 	if(randomWord[0] != null){
@@ -141,10 +180,12 @@ function selectwordoftheday(){
 	if(randomWord[1] != null){
 		client.channels.cache.get('1182165246870310984').send(`Yesterday's random word was **${randomWord[1].word}**.${streakString}`)
 	}
-	client.channels.cache.get('1182165246870310984').send(`Today's random word has been selected! it has been used **${newRandomWord.count}** times (before March 4, 2024)`)
+	client.channels.cache.get('1182165246870310984').send(`Today's random word has been selected! it has been used **${newRandomWord.count}** times`)
 
 }
 function selectevilwordoftheday(){
+	randomWordData = fs.readFileSync("wordOfTheDay.json") // reads the json file
+	randomWord = JSON.parse(randomWordData) // turns json into js
 	newRandomEvilWord = getRandomWord(randomWordsList)
 	if(randomWord[2] != null){
 		oldRandomEvilWord = randomWord[2]
@@ -156,7 +197,7 @@ function selectevilwordoftheday(){
 	if(randomWord[3] != null){
 		client.channels.cache.get('1182165246870310984').send(`Yesterday's illegal word word was **${randomWord[3].word}**`)
 	}
-	client.channels.cache.get('1182165246870310984').send(`Today's illegal word has been selected! it has been used **${newRandomEvilWord.count}** times (before March 4, 2024)`)
+	client.channels.cache.get('1182165246870310984').send(`Today's illegal word has been selected! it has been used **${newRandomEvilWord.count}** times`)
 
 }
 function selectvictimoftheday(){
@@ -251,6 +292,12 @@ client.once(Events.ClientReady, readyClient => {
 		scheduled: true,
 		timezone: "US/Central"
 	});
+	cron.schedule('59 23 * * *', () => {
+		countAndSortWords()
+	},{
+		scheduled: true,
+		timezone: "US/Central"
+	});
 	if(randomWord[0] == null){
 		selectwordoftheday()
 	}
@@ -263,11 +310,66 @@ client.once(Events.ClientReady, readyClient => {
 });
 
 client.on("messageCreate", (m) => {
+	
+	let message = m.toString()
+	if(m.author.id != '1213683278113144832'){
+		let segmentedMessage = segmenterEn.segment(message)
+		segmentedMessage = [...segmentedMessage].filter(s => s.isWordLike)
+		for(let segment of segmentedMessage){
+			if(segment.segment.replace(/\s/g, '').length>0 && !hasNumbers(segment.segment)) { 
+				dailyWordsList.push(segment.segment)
+			}
+		}
+		let jsonwordsdaily = JSON.stringify(dailyWordsList) // turns js back into json
+		fs.writeFileSync("wordsListDaily.json", jsonwordsdaily) // the json file is now the xp variable
+	}
+	
 	murderData = fs.readFileSync("murder.json")
 	murderObject = JSON.parse(murderData)[0] // turns json into js
 	victimObject = JSON.parse(murderData)[2]
 	let xpIndex = xpObject.findIndex(element => element.id === m.author.id)
 	let murderIndex = murderObject.findIndex(element => element.id === m.author.id)
+//PART THAT BANS LAUGHING
+/*
+	const message = m.toString()
+	let laughBanned = 0
+	let laughIndex = laughObject.findIndex(element => element.id === m.author.id)
+	if(laughIndex == -1){
+		let usertoadd = {
+			id: m.author.id,
+			username: m.author.username,
+			banned: 0
+		}
+		laughObject.push(usertoadd)
+		laughIndex = laughObject.findIndex(element => element.id === m.author.id)
+	}
+	try{
+		if(laughObject[laughIndex].username != m.member.displayName){
+			laughObject[laughIndex].username = m.member.displayName
+		}
+	}catch{
+		laughObject[laughIndex].username = m.author.username
+	}
+	laughBanned = laughObject[laughIndex].banned
+	if(laughBanned){
+		m.channel.send(`${m.author} is currently timed out for laughing`)
+		m.delete()
+		return
+	}else{
+		for(i in laughStrings){
+			if(message.includes(laughStrings[i])){
+				m.channel.send(`${m.author} stop laughing.`)
+				laughObject[laughIndex].banned = true
+				m.delete()
+				setTimeout(() => {
+					laughObject[laughIndex].banned = false
+				}, 7200000);
+				break;
+			}
+		}
+	}
+*/
+//END PART THAT BANS LAUGHING
 	if(xpIndex == -1){
 		let userxp = {
 			id: m.author.id,
@@ -336,7 +438,7 @@ client.on("messageCreate", (m) => {
 			}
 			randomWord[5][wordUserIndex].secret++
 			let xpToAdd = randomWord[4]*25*(Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin)
-			m.reply(`${m.author} found the secret word: **${randomWord[0].word}**`)
+			m.channel.send(`${m.author} found the secret word: **${randomWord[0].word}**`)
 			client.channels.cache.get('1182165246870310984').send(`${m.author} found the secret word: **${randomWord[0].word}** and was awarded ${xpToAdd} xp. Current random word streak: **${randomWord[4]}** day(s).`)
 			xpObject[xpIndex].xp += xpToAdd
 			levelUpCheck(xpObject,xpIndex,m)
@@ -344,7 +446,7 @@ client.on("messageCreate", (m) => {
 			fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
 		}
 		if(m.toString().toLowerCase().includes(randomWord[2].word.toLowerCase())){
-			let wordUserIndex = randomWord[5].findIndex(element => element.id === targetuser.id)
+			let wordUserIndex = randomWord[5].findIndex(element => element.id === m.author.id)
 			if(wordUserIndex==-1){
 				let userword = {
 					id: m.author.id,

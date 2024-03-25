@@ -6,3 +6,7 @@ BOT_XP_BOSS/wordsList.json
 BOT_XP_BOSS/wordOfTheDay.json
 BOT_XP_BOSS/package.json
 BOT_XP_BOSS/package-lock.json
+BOT_XP_BOSS/dataminer.js
+BOT_XP_BOSS/dataorganizer.js
+BOT_XP_BOSS/wordsListDaily.json
+BOT_XP_BOSS/wordsListSingle.json
