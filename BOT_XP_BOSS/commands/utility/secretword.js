@@ -24,7 +24,7 @@ module.exports = {
 				half1 = (`Yesterday's secret word was **${randomWord[1].word}**. It was found by ${randomWord[1].foundBy}.`)
 			}
 			if(randomWord[0].found == false){
-				half2 = (`Today's secret word has been used **${randomWord[0].count}** times before March 4, 2024. Today's secret word has **NOT** been found`)
+				half2 = (`Today's secret word has been used **${randomWord[0].count}** times. Today's secret word has **NOT** been found`)
 			}else{
 				half2 = (`Today's secret word has been found by ${randomWord[0].foundBy}. Today's secret word was **${randomWord[0].word}**.`)
 			}

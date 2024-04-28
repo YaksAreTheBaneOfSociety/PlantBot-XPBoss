@@ -103,7 +103,12 @@ function hasNumbers(inputString) {
 }
 var getRandomWord = function(wordList){
     const randomIndex = Math.floor(Math.random() * wordList.length);
-    return wordList[randomIndex];
+	let wordPicked = wordList[randomIndex]
+	if(wordPicked.count > 5 || wordPicked.nonword == null)
+    	return wordPicked
+	else{
+		return getRandomWord(wordList)
+	}
 }
 function countAndSortWords(){
 	while(dailyWordsList.length > 0){
@@ -128,12 +133,49 @@ function countAndSortWords(){
 		}
 	}
 	randomWordsList.sort(compareObjects);
-	let jsonwords = JSON.stringify(WordsList)
-	fs.writeFileSync("wordsListNew.json", jsonwords)
 	let jsonwordsdaily = JSON.stringify(dailyWordsList)
 	fs.writeFileSync("wordsListDaily.json", jsonwordsdaily)
 	let jsonsinglewords = JSON.stringify(singleWordsList)
 	fs.writeFileSync("wordsListSingle.json", jsonsinglewords)
+	// Function to read words_alpha.txt
+	function readWordsAlpha() {
+		return new Promise((resolve, reject) => {
+			fs.readFile('words_alpha.txt', 'utf8', (err, data) => {
+				if (err) {
+					reject(err);
+				} else {
+					const words = new Set(data.trim().split('\n').map(word => word.trim()));
+					resolve(words);
+				}
+			});
+		});
+	}
+	// Function to add nonword property
+	async function addNonwordProperty() {
+		try {
+			const wordsAlpha = await readWordsAlpha();
+			const updatedList = randomWordsList.map(obj => {
+				if (obj.count <= 5 && !wordsAlpha.has(obj.word)) {
+					return { ...obj, nonword: true };
+				}
+				return obj;
+			});
+
+			fs.writeFile('wordsListNew.json', JSON.stringify(updatedList, null, 2), 'utf8', err => {
+				if (err) throw err;
+				console.log('File has been saved!');
+			});
+
+		} catch (err) {
+			console.error('Error:', err);
+		}
+	}
+
+	// Call the function to add nonword property
+	addNonwordProperty();
+	let jsonwords = JSON.stringify(randomWordsList)
+	fs.writeFileSync("wordsListNew.json", jsonwords)
+
 }
 function levelUpCheck(xpObject,xpIndex,m){
 	let xpNeeded = 75
@@ -173,14 +215,14 @@ function selectwordoftheday(){
 		randomWord[4] = 0
 		streakString = " Yesterday's word was not found. Streak reset to 0."
 	}else{
-		streakString = `Yesterday's word was found. Current random word streak: **${randomWord[4]}** day(s).`
+		streakString = `Yesterday's word was found. Current secret word streak: **${randomWord[4]}** day(s).`
 	}
 	let jsonRandomWord = JSON.stringify(randomWord)
 	fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
 	if(randomWord[1] != null){
-		client.channels.cache.get('1182165246870310984').send(`Yesterday's random word was **${randomWord[1].word}**.${streakString}`)
+		client.channels.cache.get('1182165246870310984').send(`Yesterday's secret word was **${randomWord[1].word}**.${streakString}`)
 	}
-	client.channels.cache.get('1182165246870310984').send(`Today's random word has been selected! it has been used **${newRandomWord.count}** times`)
+	client.channels.cache.get('1182165246870310984').send(`Today's secret word has been selected! it has been used **${newRandomWord.count}** times`)
 
 }
 function selectevilwordoftheday(){
@@ -195,7 +237,7 @@ function selectevilwordoftheday(){
 	let jsonRandomWord = JSON.stringify(randomWord)
 	fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
 	if(randomWord[3] != null){
-		client.channels.cache.get('1182165246870310984').send(`Yesterday's illegal word word was **${randomWord[3].word}**`)
+		client.channels.cache.get('1182165246870310984').send(`Yesterday's illegal word was **${randomWord[3].word}**`)
 	}
 	client.channels.cache.get('1182165246870310984').send(`Today's illegal word has been selected! it has been used **${newRandomEvilWord.count}** times`)
 
@@ -439,7 +481,7 @@ client.on("messageCreate", (m) => {
 			randomWord[5][wordUserIndex].secret++
 			let xpToAdd = randomWord[4]*25*(Math.floor(Math.random()*(xpMax-xpMin+1))+xpMin)
 			m.channel.send(`${m.author} found the secret word: **${randomWord[0].word}**`)
-			client.channels.cache.get('1182165246870310984').send(`${m.author} found the secret word: **${randomWord[0].word}** and was awarded ${xpToAdd} xp. Current random word streak: **${randomWord[4]}** day(s).`)
+			client.channels.cache.get('1182165246870310984').send(`${m.author} found the secret word: **${randomWord[0].word}** and was awarded ${xpToAdd} xp. Current secret word streak: **${randomWord[4]}** day(s).`)
 			xpObject[xpIndex].xp += xpToAdd
 			levelUpCheck(xpObject,xpIndex,m)
 			let jsonRandomWord = JSON.stringify(randomWord)
@@ -461,13 +503,17 @@ client.on("messageCreate", (m) => {
 			if(randomWord[4]!=0){
 				xpToRemove *= randomWord[4]
 			}
-			xpObject[xpIndex].xp += xpToRemove
-			levelUpCheck(xpObject,xpIndex,m)
 			setTimeout(() => {
+				xpObject[xpIndex].xp += xpToRemove
+				levelUpCheck(xpObject,xpIndex,m)
+				let randomWordInfo = randomWord[5]
+				randomWordData = fs.readFileSync("wordOfTheDay.json") // reads the json file
+				randomWord = JSON.parse(randomWordData) // turns json into js
+				randomWord[5] = randomWordInfo
 				client.channels.cache.get('1182165246870310984').send(`${m.author} said the illegal word and was fined ${-xpToRemove} xp`)
 				let jsonRandomWord = JSON.stringify(randomWord)
 				fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
-			}, Math.floor(10000*Math.random()))
+			}, Math.floor(600000*Math.random()))
 		}
 	} catch (err){
 		console.log('an error occured')
