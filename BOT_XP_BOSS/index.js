@@ -352,7 +352,7 @@ client.once(Events.ClientReady, readyClient => {
 });
 
 client.on("messageCreate", (m) => {
-	
+
 	let message = m.toString()
 	if(m.author.id != '1213683278113144832'){
 		let segmentedMessage = segmenterEn.segment(message)
@@ -365,7 +365,9 @@ client.on("messageCreate", (m) => {
 		let jsonwordsdaily = JSON.stringify(dailyWordsList) // turns js back into json
 		fs.writeFileSync("wordsListDaily.json", jsonwordsdaily) // the json file is now the xp variable
 	}
-	
+	if(m.author.roles == null){
+		return //exit if member is not actually capable of earning roles
+	}
 	murderData = fs.readFileSync("murder.json")
 	murderObject = JSON.parse(murderData)[0] // turns json into js
 	victimObject = JSON.parse(murderData)[2]
