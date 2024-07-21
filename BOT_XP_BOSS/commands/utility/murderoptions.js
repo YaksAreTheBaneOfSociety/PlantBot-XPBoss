@@ -41,7 +41,7 @@ module.exports = {
 					inUsers.push(usertoadd)
 					await interaction.reply(`You have opted in to the murder program. Watch your back and happy hunting.`)
 				}else{
-					await interaction.reply(`You have already opted out of the murder program. Good to know someone out there isn't a bloodthirty psycho.`)
+					await interaction.reply(`You have already opted out of the murder program. Good to know someone out there isn't a bloodthirsty psycho.`)
 			
 				}
 			}else{

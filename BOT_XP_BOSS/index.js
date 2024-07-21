@@ -1,4 +1,4 @@
-const { Client, Collection, Events, GatewayIntentBits, Discord } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, Discord, Guild } = require('discord.js');
 const { token } = require('./config.json');
 
 // Create a new client instance
@@ -13,7 +13,7 @@ const client = new Client({
 
 const fs = require("fs")
 const path = require("path")
-
+const exchangeRateAPI = "https://api.exchangerate-api.com/v4/latest/USD"
 var cron = require('node-cron');
 
 client.commands = new Collection();
@@ -51,6 +51,8 @@ let randomWord = JSON.parse(randomWordData) // turns json into js
 let murderData = fs.readFileSync("murder.json")
 let murderObject = JSON.parse(murderData)[0] // turns json into js
 let victimObject = JSON.parse(murderData)[2]
+let blackjackData = fs.readFileSync("blackjack.json")
+let activeDeck = JSON.parse(blackjackData)[0]
 const segmenterEn = new Intl.Segmenter('en', { granularity: 'word' });//used for word of the day for breaking messages into wordlikes
 const xpMin = 15
 const xpMax = 40
@@ -197,7 +199,7 @@ function levelUpCheck(xpObject,xpIndex,m){
 		}
 	}else{
 		xpObject[xpIndex].level=i
-		client.channels.cache.get('1182165246870310984').send(`${m.author} has reached level **${xpObject[xpIndex].level}**`)
+		client.channels.cache.get('1258927544334422097').send(`${m.author.username} has reached level **${xpObject[xpIndex].level}**`)
 	}
 }
 function selectwordoftheday(){
@@ -255,10 +257,17 @@ function selectvictimoftheday(){
 			timesMurdered: 0
 		}
 		victimObject=newRandomVictim
+		murderData = fs.readFileSync("murder.json")
+		for (let i = 0; i < murderObject.length; i++) {
+			murderObject[i].banned = 0;
+		}
 		let jsonMurder = JSON.stringify([murderObject,JSON.parse(murderData)[1],victimObject]) // turns js back into json
 		fs.writeFileSync("murder.json", jsonMurder)
 		client.channels.cache.get('1182165246870310984').send(`Today's random victim has been selected! **${newRandomVictim.username}** should watch out for any comedically timed falling pianos in their vicinity.`)
 	})
+}
+async function banMember(member){
+	await member.ban({ deleteMessageSeconds: 0, reason: 'xp debt' })
 }
 client.on(Events.InteractionCreate, async interaction => {
 	if (!interaction.isChatInputCommand()) return;
@@ -299,7 +308,7 @@ client.on(Events.InteractionCreate, async interaction => {
 		if (interaction.replied || interaction.deferred) {
 			await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
 		} else {
-			await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+			client.channels.cache.get('1182165246870310984').send(`There was an error while executing a command: ${error}`);
 		}
 	}
 });
@@ -317,6 +326,8 @@ client.once(Events.ClientReady, readyClient => {
 	for (let i = 0; i < murderObject.length; i++) {
 		murderObject[i].banned = 0;
 	}
+	let jsonBlackjack = JSON.stringify([activeDeck,[],[]])
+	fs.writeFileSync("blackjack.json", jsonBlackjack)
 	let jsonMurder = JSON.stringify([murderObject,JSON.parse(murderData)[1],victimObject]) // turns js back into json
 	fs.writeFileSync("murder.json", jsonMurder) // the json file is now the xp variable
 	let jsonXP = JSON.stringify(xpObject) // turns js back into json
@@ -352,7 +363,6 @@ client.once(Events.ClientReady, readyClient => {
 });
 
 client.on("messageCreate", (m) => {
-
 	let message = m.toString()
 	if(m.author.id != '1213683278113144832'){
 		let segmentedMessage = segmenterEn.segment(message)
@@ -365,13 +375,15 @@ client.on("messageCreate", (m) => {
 		let jsonwordsdaily = JSON.stringify(dailyWordsList) // turns js back into json
 		fs.writeFileSync("wordsListDaily.json", jsonwordsdaily) // the json file is now the xp variable
 	}
-	if(m.author.roles == null){
-		return //exit if member is not actually capable of earning roles
+	try{
+		const roles = m.member.roles.cache
+	}catch{
+		return
 	}
 	murderData = fs.readFileSync("murder.json")
 	murderObject = JSON.parse(murderData)[0] // turns json into js
 	victimObject = JSON.parse(murderData)[2]
-	let xpIndex = xpObject.findIndex(element => element.id === m.author.id)
+
 	let murderIndex = murderObject.findIndex(element => element.id === m.author.id)
 //PART THAT BANS LAUGHING
 /*
@@ -414,6 +426,7 @@ client.on("messageCreate", (m) => {
 	}
 */
 //END PART THAT BANS LAUGHING
+	let xpIndex = xpObject.findIndex(element => element.id === m.author.id)
 	if(xpIndex == -1){
 		let userxp = {
 			id: m.author.id,
@@ -424,6 +437,12 @@ client.on("messageCreate", (m) => {
 		}
 		xpObject.push(userxp)
 		xpIndex = xpObject.findIndex(element => element.id === m.author.id)
+		if(xpObject[xpIndex].xp < 0){
+			let member = m.member
+			client.channels.cache.get('1182165246870310984').send(`<@${member.id}> was banned for going into xp debt`)
+			banMember(member)
+			xpObject.splice(xpIndex,1)
+		}
 	}
 	try{
 		if(xpObject[xpIndex].username != m.member.displayName){
@@ -433,6 +452,29 @@ client.on("messageCreate", (m) => {
 		xpObject[xpIndex].username = m.author.username
 	}
 	try{
+		//if(message.toLowerCase() == "<@1213683278113144832> are you polish?"){
+		//	m.reply("Yes")
+		//}else 
+		if(message.toLowerCase() == "<@1213683278113144832> how much does joush owe kiki?"){
+			const startdate = new Date("05/15/2024");
+			const currentdate = new Date()
+			let differenceInTime = currentdate.getTime() - startdate.getTime();
+			let differenceInDays = Math.floor(differenceInTime / (1000 * 3600 * 24));
+			const priceofmilk = 36.84
+			const amountOwed = priceofmilk*(1.005**(differenceInDays))
+			function getResults() {
+				fetch(`${exchangeRateAPI}`)
+				.then(currency => {
+					return currency.json();
+				}).then(displayResults);
+			}
+			function displayResults(currency) {
+				let toRate = currency.rates["EUR"];
+				let valueEUR = (((toRate) * amountOwed).toFixed(2))
+				m.reply(`Joush owes Kiki $${amountOwed.toFixed(2)}/€${valueEUR} worth of chocolate milk and a computer.`)
+			}
+			getResults()
+		}
 		let murderBanned = 0
 		if(murderIndex != -1){
 			try{
@@ -489,7 +531,7 @@ client.on("messageCreate", (m) => {
 			let jsonRandomWord = JSON.stringify(randomWord)
 			fs.writeFileSync("wordOfTheDay.json", jsonRandomWord)
 		}
-		if(m.toString().toLowerCase().includes(randomWord[2].word.toLowerCase())){
+		if((m.toString().toLowerCase().includes(randomWord[2].word.toLowerCase())||m.toString().toLowerCase().includes(randomWord[3].word.toLowerCase())) && (m.author.id!='1213683278113144832')){
 			let wordUserIndex = randomWord[5].findIndex(element => element.id === m.author.id)
 			if(wordUserIndex==-1){
 				let userword = {
